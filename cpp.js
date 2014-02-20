@@ -38,19 +38,22 @@
 
 define("mode/cpp", function(require, exports, module) 
 {
+    var Editor = require("ace/editor").Editor;
+    var EditSession = require("ace/edit_session").EditSession;
     var oop = require("ace/lib/oop");
     var TextMode = require("ace/mode/text").Mode;
     var Tokenizer = require("ace/tokenizer").Tokenizer;
-    var c_cppHighlightRules = require("ace/mode/c_cpp_highlight_rules").c_cppHighlightRules;
+    var c_cppHighlightRules = require("mode/c_cpp_highlight_rules").c_cppHighlightRules;
     var MatchingBraceOutdent = require("ace/mode/matching_brace_outdent").MatchingBraceOutdent;
     var Range = require("ace/range").Range;
     var CstyleBehaviour = require("ace/mode/behaviour/cstyle").CstyleBehaviour;
     var CStyleFoldMode = require("ace/mode/folding/cstyle").FoldMode;
     
-    var Mode = function() {
+    var Mode = function(suppressHighlighting, doc, session) {
         this.$tokenizer = new Tokenizer(new c_cppHighlightRules().getRules());
         this.$outdent = new MatchingBraceOutdent();
         this.$behaviour = new CstyleBehaviour();
+        this.$doc = doc;
         this.foldingRules = new CStyleFoldMode();
     };
     oop.inherits(Mode, TextMode);
@@ -85,17 +88,105 @@ define("mode/cpp", function(require, exports, module)
         }
     };
 
-    this.getNextLineIndent = function(state, line, tab) {
+    this.getNextLineIndent = function(state, line, tab, tabSize, row) {
+
         var indent = this.$getIndent(line);
+        var unindent = indent.substr(1, indent.length - tab.length);
+
+        var lastLine;
+        if (row > 0)
+            lastLine = this.$doc.$lines[row - 1];
+        else
+            lastLine = "";
 
         var tokenizedLine = this.$tokenizer.getLineTokens(line, state);
         var tokens = tokenizedLine.tokens;
         var endState = tokenizedLine.state;
+        var nTokens = tokens.length;
 
-        if (tokens.length && tokens[tokens.length-1].type == "comment") {
-            return indent;
+        // Take line to just be the characters to the left of the caret
+        // 
+
+        if (true) {
+            console.log(state);
+            // console.log(this);
         }
 
+        // if (tokens.length && tokens[tokens.length-1].type == "comment") {
+        //     return indent;
+        // }
+
+        // Comment specific behaviors
+        if (state == "comment" || state == "rd-start") {
+
+            // Default to a continuation
+            return indent.substr(1, indent.length-1) + " * ";
+
+        }
+
+        // Rules for the 'general' state
+        if (state == "start") {
+
+            // Unindent after leaving a block comment
+            if (line.match(/\*\/\s*$/)) {
+                return indent.substr(1, indent.length-1);
+            }
+
+            // If we end with a ':', we can indent
+            if (line.match(/:\s*$/)) {
+                return indent + tab;
+            }
+
+            // Unindent after leaving a naked case
+            if (lastLine.match(/case\s+\w+:\s*$/)) {
+                return unindent;
+            }
+
+            // Don't indent if we're defining a class or a namespace
+            if (line.match(/struct .*\{\s*$/) ||
+                line.match(/class .*\{\s*$/) ||
+                line.match(/namespace .*\{\s*$/) ||
+                line.match(/switch .*\{\s*$/)) {
+                return indent;
+            }
+
+            // Indenting for functions that have trailing comments
+            if (line.match(/\) *\{ *\/\//)) {
+                return indent + tab;
+            }
+
+            // Indent if the line ends on an operator token
+            if (line.match(/[+-/*<>|&^%=]\s*$/)) {
+                return indent + tab;
+            }
+
+            // Indent a naked else
+            if (line.match(/else *$/)) {
+                return indent + tab;
+            }
+
+            // Unindent after leaving a naked else
+            if (lastLine.match(/else *$/)) {
+                return unindent;
+            }
+
+            // Indent e.g. "if (foo)"
+            if (line.match(/if.*\)\s*$/)) {
+                return indent + tab;
+            }
+
+            // Unindent after leaving a naked if
+            if (lastLine.match(/if.*\)\s*$/)) {
+                return unindent;
+            }
+
+            // Indent if we're ending with a parenthesis
+            if (line.match(/^.*[\{\(\[]\s*$/)) {
+                return indent + tab;
+            }
+
+        } // start state rules
+        
         if (state == "start") {
             var match = line.match(/^.*[\{\(\[]\s*$/);
             if (match) {

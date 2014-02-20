@@ -3,6 +3,7 @@
 <head>
   <!script type="text/javascript" src="mini_require.js"></script>
   <script type="text/javascript" src="ace.js"></script>
+  <script type="text/javascript" src="c_cpp_highlight_rules.js"></script>
   <script type="text/javascript" src="cpp.js"></script>
   <style type="text/css">
   pre {
@@ -20,6 +21,18 @@
 <h2 style="margin-top: 250px">Automated Tests</h2>
 <p>Passed: <span id="passed"></span>, Failed: <span id="failed"></span></p>
 <ol id="testcontainer" style="display: none;">
+<li><pre data-expected="0">
+class foo;
+</pre></li>
+<li><pre data-expected="0">
+class foo    {
+</pre></li>
+<li><pre data-expected="0">
+struct  bar{
+</pre></li>
+<li><pre data-expected="0">
+struct bar{};
+</pre></li>
 <li><pre data-expected="2">
 if (1 == 2) {
 </pre></li>
@@ -30,7 +43,16 @@ if (1 == 2) { return 1 }
 if (1 == 2)
 </pre></li>
 <li><pre data-expected="2">
+else
+</pre></li>
+<li><pre data-expected="2">
 public: 
+</pre></li>
+<li><pre data-expected="2">
+private: 
+</pre></li>
+<li><pre data-expected="2">
+protected: 
 </pre></li>
 <li><pre data-expected="2">
 case:
@@ -50,6 +72,31 @@ int x = 1 +
 </pre></li>
 <li><pre data-expected="4">
   void myFunction() { // This function will be amazing
+</pre></li>
+<li><pre data-expected="0">
+switch (x) {
+</pre></li>
+<li><pre data-expected="2">
+case foo:
+</pre></li>
+<li><pre data-expected="0">
+case foo: bar;
+</pre></li>
+<li><pre data-expected="0">
+case foo:
+  bar;
+</pre></li>
+<li><pre data-expected="2">
+std::find_if(x.begin(), x.end(), [](int x) {
+</pre></li>
+<li><pre data-expected="0">
+/***
+ *
+ */
+</pre></li>
+<li><pre data-expected="6">
+/*******
+ *    Some text that's further ahead
 </pre></li>
 </ol>
 
