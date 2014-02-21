@@ -3,6 +3,8 @@
 <head>
   <!script type="text/javascript" src="mini_require.js"></script>
   <script type="text/javascript" src="ace.js"></script>
+  <script type="text/javascript" src="c_cpp_style_behaviour.js"></script>
+  <script type="text/javascript" src="c_cpp_matching_brace_outdent.js"></script>
   <script type="text/javascript" src="c_cpp_highlight_rules.js"></script>
   <script type="text/javascript" src="cpp.js"></script>
   <style type="text/css">
@@ -24,10 +26,10 @@
 <li><pre data-expected="0">
 class foo;
 </pre></li>
-<li><pre data-expected="0">
+<li><pre data-expected="2">
 class foo    {
 </pre></li>
-<li><pre data-expected="0">
+<li><pre data-expected="2">
 struct  bar{
 </pre></li>
 <li><pre data-expected="0">
@@ -93,6 +95,11 @@ std::find_if(x.begin(), x.end(), [](int x) {
 /***
  *
  */
+</pre></li>
+<li><pre data-expected="4">
+    /***
+     *
+     */
 </pre></li>
 <li><pre data-expected="6">
 /*******

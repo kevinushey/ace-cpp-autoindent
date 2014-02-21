@@ -44,15 +44,15 @@ define("mode/cpp", function(require, exports, module)
     var TextMode = require("ace/mode/text").Mode;
     var Tokenizer = require("ace/tokenizer").Tokenizer;
     var c_cppHighlightRules = require("mode/c_cpp_highlight_rules").c_cppHighlightRules;
-    var MatchingBraceOutdent = require("ace/mode/matching_brace_outdent").MatchingBraceOutdent;
+    var MatchingBraceOutdent = require("mode/c_cpp_matching_brace_outdent").MatchingBraceOutdent;
     var Range = require("ace/range").Range;
-    var CstyleBehaviour = require("ace/mode/behaviour/cstyle").CstyleBehaviour;
+    var CStyleBehaviour = require("mode/behaviour/cstyle").CStyleBehaviour;
     var CStyleFoldMode = require("ace/mode/folding/cstyle").FoldMode;
     
     var Mode = function(suppressHighlighting, doc, session) {
         this.$tokenizer = new Tokenizer(new c_cppHighlightRules().getRules());
         this.$outdent = new MatchingBraceOutdent();
-        this.$behaviour = new CstyleBehaviour();
+        this.$behaviour = new CStyleBehaviour();
         this.$doc = doc;
         this.foldingRules = new CStyleFoldMode();
     };
@@ -104,12 +104,31 @@ define("mode/cpp", function(require, exports, module)
         var endState = tokenizedLine.state;
         var nTokens = tokens.length;
 
-        // Take line to just be the characters to the left of the caret
-        // 
+        // Decisions made should not depend on trailing comments in the line
+        // So, we strip those out for the purposes of indentation
+        var lineCommentMatch = line.match(/\/\//);
+        if (lineCommentMatch) {
+            line = line.substr(0, lineCommentMatch.index - 1);
+        }
+
+        var lastLineCommentMatch = lastLine.match(/\/\//);
+        if (lastLineCommentMatch) {
+            console.log(lastLineCommentMatch);
+            lastLine = lastLine.substr(0, lastLineCommentMatch.index - 1);
+        }
+
+        // console.log(lastLine);
+
+        // Get the caret position, if available
+        // Decisions made should depend on text up to the caret point
+        try {
+            var caretPosition = window.editor.getCursorPosition();
+            line = line.substr(0, caretPosition.column);
+        } catch(err) {}
 
         if (true) {
-            console.log(state);
-            // console.log(this);
+            // console.log(state);
+            // console.log(line);
         }
 
         // if (tokens.length && tokens[tokens.length-1].type == "comment") {
@@ -119,8 +138,15 @@ define("mode/cpp", function(require, exports, module)
         // Comment specific behaviors
         if (state == "comment" || state == "rd-start") {
 
+            // Handle a beginning of an rd-start
+            // TODO: The rules for starting an R block, e.g. within
+            // "/*** R", likely would have to be modified here.
+            if (/\/\*\*/.test(line)) {
+                return indent + ' * ';
+            }
+
             // Default to a continuation
-            return indent.substr(1, indent.length-1) + " * ";
+            return indent.substr(0, indent.length-1) + ' * ';
 
         }
 
@@ -142,10 +168,8 @@ define("mode/cpp", function(require, exports, module)
                 return unindent;
             }
 
-            // Don't indent if we're defining a class or a namespace
-            if (line.match(/struct .*\{\s*$/) ||
-                line.match(/class .*\{\s*$/) ||
-                line.match(/namespace .*\{\s*$/) ||
+            // Don't indent for namespaces
+            if (line.match(/namespace .*\{\s*$/) ||
                 line.match(/switch .*\{\s*$/)) {
                 return indent;
             }
@@ -185,31 +209,17 @@ define("mode/cpp", function(require, exports, module)
                 return indent + tab;
             }
 
+            if (line.match(/^.*[\{\(\[]\s*$/)) {
+                return indent + tab;
+            }
+
         } // start state rules
-        
-        if (state == "start") {
-            var match = line.match(/^.*[\{\(\[]\s*$/);
-            if (match) {
-                indent += tab;
-            }
-        } else if (state == "doc-start") {
-            if (endState == "start") {
-                return "";
-            }
-            var match = line.match(/^\s*(\/?)\*/);
-            if (match) {
-                if (match[1]) {
-                    indent += " ";
-                }
-                indent += "* ";
-            }
-        }
 
         return indent;
     };
 
     this.checkOutdent = function(state, line, input) {
-        return this.$outdent.checkOutdent(line, input);
+        return this.$outdent.checkOutdent(state, line, input);
     };
 
     this.autoOutdent = function(state, doc, row) {
