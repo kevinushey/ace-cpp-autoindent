@@ -124,27 +124,15 @@ define("mode/cpp", function(require, exports, module)
 
         var lastLineCommentMatch = lastLine.match(/\/\//);
         if (lastLineCommentMatch) {
-            // console.log(lastLineCommentMatch);
             lastLine = lastLine.substr(0, lastLineCommentMatch.index - 1);
         }
 
-        // console.log(lastLine);
-
         // Get the caret position, if available
         // Decisions made should depend on text up to the caret point
-        // try {
-        //     var caretPosition = window.editor.getCursorPosition();
-        //     line = line.substr(0, caretPosition.column);
-        // } catch(err) {}
-
-        if (false) {
-            console.log(state);
-            console.log(line);
-        }
-
-        // if (tokens.length && tokens[tokens.length-1].type == "comment") {
-        //     return indent;
-        // }
+        try {
+            var caretPosition = window.editor.getCursorPosition();
+            line = line.substr(0, caretPosition.column);
+        } catch(err) {}
 
         // Comment specific behaviors
         if (state == "comment" || state == "rd-start") {
@@ -158,8 +146,15 @@ define("mode/cpp", function(require, exports, module)
 
             // Allow users to have text further indented in a comment block
             if (/\s*\*+\s*(\w)/.test(line)) {
-                var firstCharMatch = line.match(/\w/);
-                return indent + '*' + Array(firstCharMatch.index-1).join(' ');
+                console.log("wat");
+                var firstCharMatch = /\w/.exec(line); // to get the first match
+                if (firstCharMatch) {
+                    var firstStar = /\*/.exec(line);
+                    return indent + '*' + Array(firstCharMatch.index - firstStar.index).join(' ');
+                } else {
+                    return indent + '* ';
+                }
+                
             }
             
             // default behavior -- doxygen style
@@ -219,12 +214,6 @@ define("mode/cpp", function(require, exports, module)
                 return indent;
             }
 
-            // Indenting for functions that have trailing comments
-            if (line.match(/\)\s*\{\s*\/\//)) {
-                console.log("got here");
-                return indent + tab;
-            }
-
             // Indent if the line ends on an operator token
             if (line.match(/[\+\-\/\*\<\>\|\&\^\%\=]\s*$/)) {
                 return indent + tab;
@@ -252,6 +241,7 @@ define("mode/cpp", function(require, exports, module)
 
             // Tricky: indent if we're ending with a parenthesis,
             // but this parenthesis closes a multi-line function decl
+            // hardwired to ) { type cases now
             if (line.match(/^.*\)\s*[\{\(\[]\s*$/)) {
 
                 // Find the row for the associated opening paren (
@@ -271,8 +261,22 @@ define("mode/cpp", function(require, exports, module)
                 return indent + tab;
             }
 
-            if (line.match(/^.*[\{\(\[]\s*$/)) {
-                return indent + tab;
+            // If we end with a ) we should walk back up to find its
+            // match and indent based on indentation there
+            var endingTokenMatch = (/([\)\}\];])$/).exec(line);
+            if (endingTokenMatch) {
+                var endingToken = endingTokenMatch[0];
+                if (endingToken == ";") {
+                    return indent;
+                }
+                for (var i=row; i >= 0; --i) {
+                    if (lines[i].match("\\" + endingToken)) {
+                        console.log("match!");
+                        var startPos = lines[i].match(/(\w)/).index + 1;
+                        break;
+                    }
+                }
+                return indent;
             }
 
         } // start state rules

@@ -31,14 +31,14 @@ var CStyleBehaviour = function () {
 
             if (namedNamespace) {
                 return {
-                    text: '{} // namespace ' + namedNamespace[1],
+                    text: '{} // end namespace ' + namedNamespace[1],
                     selection: [1, 1]
                 };
             }
 
             if (anonNamespace) {
                 return {
-                    text: '{} // anonymous namespace',
+                    text: '{} // end anonymous namespace',
                     selection: [1, 1]
                 };
             }
@@ -80,8 +80,25 @@ var CStyleBehaviour = function () {
                 if (!openBracePos)
                      return null;
 
-                var indent = this.getNextLineIndent(state, line.substring(0, line.length - 1), session.getTabString());
-                var next_indent = this.$getIndent(session.doc.getLine(openBracePos.row));
+                var indent = this.getNextLineIndent(state, line.substring(0, line.length - 1), session.getTabString(), session.getTabSize(), row);
+                
+                // next_indent determines where the '}' gets placed, and $getIndent
+                // seems to get it wrong by default. Hack it in here
+                var lines = session.doc.$lines;
+
+                for (var i=row; i >= 0; --i) {
+                    var cLine = lines[i];
+                    var commentMatch = cLine.match(/\/\//);
+                    if (commentMatch) {
+                        cLine = line.substr(0, commentMatch.index - 1);
+                    }
+                    if (/\(/.test(cLine)) {
+                        var startPos = cLine.match(/(\w)/).index + 1;
+                        break;
+                    }
+                }
+
+                var next_indent = Array(startPos).join(" ");
 
                 return {
                     text: '\n' + indent + '\n' + next_indent,
