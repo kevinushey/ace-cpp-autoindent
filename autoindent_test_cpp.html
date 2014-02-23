@@ -19,7 +19,6 @@
 
 <h2>Interactive Tester</h2>
 <div id="editor" style="width: 600px; height: 200px; border: 1px solid #999"></div>
-
 <h2 style="margin-top: 250px">Automated Tests</h2>
 <p>Passed: <span id="passed"></span>, Failed: <span id="failed"></span></p>
 <ol id="testcontainer" style="display: none;">
@@ -43,6 +42,15 @@ if (1 == 2) { return 1 }
 </pre></li>
 <li><pre data-expected="2">
 if (1 == 2)
+</pre></li>
+<li><pre data-expected="4">
+if (a)
+  if (b)
+</pre></li>
+<li><pre data-expected="0">
+if (a)
+  if (b)
+    return foo;
 </pre></li>
 <li><pre data-expected="2">
 else
@@ -104,6 +112,9 @@ std::find_if(x.begin(), x.end(), [](int x) {
 <li><pre data-expected="6">
 /*******
  *    Some text that's further ahead
+</pre></li>
+<li><pre data-expected="6">
+static void namespace_reader() {
 </pre></li>
 </ol>
 

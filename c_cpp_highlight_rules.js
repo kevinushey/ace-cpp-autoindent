@@ -48,7 +48,12 @@ var c_cppHighlightRules = function() {
         "signed|sizeof|static|static_assert|static_cast|struct|" +
         "switch|template|this|thread_local|throw|true|try|typedef|" +
         "typeid|typename|union|unsigned|using|virtual|void|volatile|" +
-        "wchar_t|while|xor|xor_eq").split("|")
+        "wchar_t|while|xor|xor_eq|" +
+        "operator+|operator-|operator*|operator/|" +
+        "operator<|operator<<|operator>|operator>>|" +
+        "operator->|operator->*|operator&|operator[]|" +
+        "operator=|operator==|operator!=|operator>=|operator<=|" +
+        "operator++|operator--|operator+=|operator-=").split("|")
     );
 
     var buildinConstants = lang.arrayToMap(

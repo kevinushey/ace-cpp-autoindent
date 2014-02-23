@@ -57,7 +57,7 @@ define("mode/cpp", function(require, exports, module)
         this.foldingRules = new CStyleFoldMode();
     };
     oop.inherits(Mode, TextMode);
-    
+
     (function() {
 
     this.toggleCommentLines = function(state, doc, startRow, endRow) {
@@ -90,8 +90,19 @@ define("mode/cpp", function(require, exports, module)
 
     this.getNextLineIndent = function(state, line, tab, tabSize, row) {
 
+        var inMacro = function(lines, thisRow) {
+            if (/#define/.test(lines[thisRow])) {
+                return true;
+            } else if (/\\$/.test(lines[thisRow-1])) {
+                return inMacro(lines, thisRow-1);
+            } else {
+                return false;
+            }
+        }
+
         var indent = this.$getIndent(line);
         var unindent = indent.substr(1, indent.length - tab.length);
+        var lines = this.$doc.$lines;
 
         var lastLine;
         if (row > 0)
@@ -113,7 +124,7 @@ define("mode/cpp", function(require, exports, module)
 
         var lastLineCommentMatch = lastLine.match(/\/\//);
         if (lastLineCommentMatch) {
-            console.log(lastLineCommentMatch);
+            // console.log(lastLineCommentMatch);
             lastLine = lastLine.substr(0, lastLineCommentMatch.index - 1);
         }
 
@@ -121,14 +132,14 @@ define("mode/cpp", function(require, exports, module)
 
         // Get the caret position, if available
         // Decisions made should depend on text up to the caret point
-        try {
-            var caretPosition = window.editor.getCursorPosition();
-            line = line.substr(0, caretPosition.column);
-        } catch(err) {}
+        // try {
+        //     var caretPosition = window.editor.getCursorPosition();
+        //     line = line.substr(0, caretPosition.column);
+        // } catch(err) {}
 
-        if (true) {
-            // console.log(state);
-            // console.log(line);
+        if (false) {
+            console.log(state);
+            console.log(line);
         }
 
         // if (tokens.length && tokens[tokens.length-1].type == "comment") {
@@ -138,20 +149,54 @@ define("mode/cpp", function(require, exports, module)
         // Comment specific behaviors
         if (state == "comment" || state == "rd-start") {
 
-            // Handle a beginning of an rd-start
+            // Handle a beginning of a comment
             // TODO: The rules for starting an R block, e.g. within
             // "/*** R", likely would have to be modified here.
-            if (/\/\*\*/.test(line)) {
+            if (/\/\*/.test(line)) {
                 return indent + ' * ';
             }
 
-            // Default to a continuation
+            // Allow users to have text further indented in a comment block
+            if (/\s*\*+\s*(\w)/.test(line)) {
+                var firstCharMatch = line.match(/\w/);
+                return indent + '*' + Array(firstCharMatch.index-1).join(' ');
+            }
+            
+            // default behavior -- doxygen style
             return indent.substr(0, indent.length-1) + ' * ';
 
         }
 
         // Rules for the 'general' state
         if (state == "start") {
+
+            // Indent after a #define with continuation
+            if (line.match(/#define.*\\/)) {
+                return indent + tab;
+            }
+
+            // Unindent after leaving a #define with continuation
+            if (inMacro(lines, row)) {
+                var match = line.match(/\\/);
+                if (!match) {
+                    return unindent;
+                } else {
+                    line = line.substr(0, match.index);
+                }
+            }
+
+            // Vertical alignment
+            if (line.match(/,\s*$/)) {
+
+                // get the associated brace position
+                var bracePos = line.match(/[[{(]/);
+                if (bracePos) {
+                    var firstCharAfter = line.substr(bracePos.index).match(/\w/);
+                    return Array(firstCharAfter.index + bracePos.index + 1).join(" ");
+                } else {
+                    return indent;
+                }
+            }
 
             // Unindent after leaving a block comment
             if (line.match(/\*\/\s*$/)) {
@@ -175,12 +220,13 @@ define("mode/cpp", function(require, exports, module)
             }
 
             // Indenting for functions that have trailing comments
-            if (line.match(/\) *\{ *\/\//)) {
+            if (line.match(/\)\s*\{\s*\/\//)) {
+                console.log("got here");
                 return indent + tab;
             }
 
             // Indent if the line ends on an operator token
-            if (line.match(/[+-/*<>|&^%=]\s*$/)) {
+            if (line.match(/[\+\-\/\*\<\>\|\&\^\%\=]\s*$/)) {
                 return indent + tab;
             }
 
@@ -190,7 +236,7 @@ define("mode/cpp", function(require, exports, module)
             }
 
             // Unindent after leaving a naked else
-            if (lastLine.match(/else *$/)) {
+            if (lastLine.match(/else\s*$/)) {
                 return unindent;
             }
 
@@ -202,6 +248,22 @@ define("mode/cpp", function(require, exports, module)
             // Unindent after leaving a naked if
             if (lastLine.match(/if.*\)\s*$/)) {
                 return unindent;
+            }
+
+            // Tricky: indent if we're ending with a parenthesis,
+            // but this parenthesis closes a multi-line function decl
+            if (line.match(/^.*\)\s*[\{\(\[]\s*$/)) {
+
+                // Find the row for the associated opening paren (
+                for (var i=row; i >= 0; --i) {
+                    if (/\(/.test(lines[i])) {
+                        var startPos = lines[i].match(/(\w)/).index + 1;
+                        break;
+                    }
+                }
+                
+                return Array(startPos).join(" ") + tab;
+
             }
 
             // Indent if we're ending with a parenthesis
