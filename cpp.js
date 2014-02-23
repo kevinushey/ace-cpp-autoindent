@@ -100,6 +100,15 @@ define("mode/cpp", function(require, exports, module)
             }
         }
 
+        var complements = {
+            "{" : "}",
+            "}" : "{",
+            "[" : "]",
+            "]" : "[",
+            "(" : ")",
+            ")" : "("
+        };
+
         var indent = this.$getIndent(line);
         var unindent = indent.substr(1, indent.length - tab.length);
         var lines = this.$doc.$lines;
@@ -241,42 +250,43 @@ define("mode/cpp", function(require, exports, module)
 
             // Tricky: indent if we're ending with a parenthesis,
             // but this parenthesis closes a multi-line function decl
-            // hardwired to ) { type cases now
-            if (line.match(/^.*\)\s*[\{\(\[]\s*$/)) {
+            var match = line.match(/([\)\}\]]);$/);
+            if (match) {
 
-                // Find the row for the associated opening paren (
+                var openParen = complements[ match[1] ];
+                // Find the row for the associated opening paren
                 for (var i=row; i >= 0; --i) {
-                    if (/\(/.test(lines[i])) {
+                    if (lines[i].match("\\" + openParen)) {
+                        var startPos = lines[i].match(/(\w)/).index + 1;
+                        break;
+                    }
+                }
+                
+                if (startPos >= 0) {
+                    return Array(startPos).join(" ");
+                }
+
+            }
+
+            // Same logic for function calls
+            var match = line.match(/\)\s*\{\s*$/);
+            if (match) {
+
+                // Find the row for the associated opening paren
+                for (var i=row; i >= 0; --i) {
+                    if (lines[i].match(/\(/)) {
                         var startPos = lines[i].match(/(\w)/).index + 1;
                         break;
                     }
                 }
                 
                 return Array(startPos).join(" ") + tab;
-
+                
             }
 
             // Indent if we're ending with a parenthesis
             if (line.match(/^.*[\{\(\[]\s*$/)) {
                 return indent + tab;
-            }
-
-            // If we end with a ) we should walk back up to find its
-            // match and indent based on indentation there
-            var endingTokenMatch = (/([\)\}\];])$/).exec(line);
-            if (endingTokenMatch) {
-                var endingToken = endingTokenMatch[0];
-                if (endingToken == ";") {
-                    return indent;
-                }
-                for (var i=row; i >= 0; --i) {
-                    if (lines[i].match("\\" + endingToken)) {
-                        console.log("match!");
-                        var startPos = lines[i].match(/(\w)/).index + 1;
-                        break;
-                    }
-                }
-                return indent;
             }
 
         } // start state rules
