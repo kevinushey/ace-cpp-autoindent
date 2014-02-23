@@ -16,6 +16,12 @@ var CStyleBehaviour = function () {
 
         if (text == '{') {
 
+            // remove const, noexcept from line for purposes of selection
+            line = line.replace("const", "");
+            line = line.replace("noexcept", "");
+
+            console.log(line);
+
             var selection = editor.getSelectionRange();
             var selected = session.doc.getTextRange(selection);
             if (selected !== "") {
@@ -46,6 +52,32 @@ var CStyleBehaviour = function () {
             // class, struct specific indenting
             var hasClassOrStruct = line.match(/class|struct/);
             if (hasClassOrStruct) {
+                return {
+                    text: '{};',
+                    selection: [1, 1]
+                };
+            }
+
+            // if we're assigning, e.g. through an initializor list, then
+            // we should include a semi-colon
+            if (line.match(/\=\s*$/)) {
+                return {
+                    text: '{};',
+                    selection: [1, 1]
+                };
+            }
+
+            // if we're defining a function, don't include a semi-colon
+            if (line.match(/\)\s*/)) {
+                return {
+                    text: '{}',
+                    selection: [1, 1]
+                };
+            }
+
+            // if it looks like we're using a initializor eg 'obj {', then
+            // include a closing ;
+            if (line.match(/\w+\s+/)) {
                 return {
                     text: '{};',
                     selection: [1, 1]
@@ -83,8 +115,9 @@ var CStyleBehaviour = function () {
                 var indent = this.getNextLineIndent(state, line.substring(0, line.length - 1), session.getTabString(), session.getTabSize(), row);
                 
                 // next_indent determines where the '}' gets placed, and $getIndent
-                // seems to get it wrong by default. Hack it in here
+                // seems to get it wrong by default. Hack it in here.
                 var lines = session.doc.$lines;
+                var startPos = 0;
 
                 for (var i=row; i >= 0; --i) {
                     var cLine = lines[i];
@@ -93,7 +126,7 @@ var CStyleBehaviour = function () {
                         cLine = line.substr(0, commentMatch.index - 1);
                     }
                     if (/\(/.test(cLine)) {
-                        var startPos = cLine.match(/(\w)/).index + 1;
+                        startPos = cLine.match(/(\w)/).index + 1;
                         break;
                     }
                 }
@@ -104,6 +137,7 @@ var CStyleBehaviour = function () {
                     text: '\n' + indent + '\n' + next_indent,
                     selection: [1, indent.length, 1, indent.length]
                 };
+                
             }
         }
     });

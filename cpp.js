@@ -190,13 +190,32 @@ define("mode/cpp", function(require, exports, module)
             }
 
             // Vertical alignment
+            // We need to handle vertical alignment for two scenarios:
+            // One, for multi-line function declarations, so that e.g.
+            //
+            // void foo(int a, int b, 
+            //
+            //          ^
+            //
+            // and two, for cases where we have multiple objects. Maybe
+            // this can just be specialized for {.
+            // static object foo {
+            //      {foo, bar},
+            //
+            //      ^
+            //
+            // We can do this decision based on '},' etc.
             if (line.match(/,\s*$/)) {
 
                 // get the associated brace position
                 var bracePos = line.match(/[[{(]/);
                 if (bracePos) {
-                    var firstCharAfter = line.substr(bracePos.index).match(/\w/);
-                    return Array(firstCharAfter.index + bracePos.index + 1).join(" ");
+                    var firstCharAfter = line.substr(bracePos.index).match(/([^\s])/);
+                    var idx = firstCharAfter.index;
+                    if (firstCharAfter[1] == "(" || firstCharAfter[1] == "[") {
+                        idx += 1;
+                    }
+                    return Array(idx + bracePos.index + 1).join(" ");
                 } else {
                     return indent;
                 }
@@ -248,25 +267,7 @@ define("mode/cpp", function(require, exports, module)
                 return unindent;
             }
 
-            // Tricky: indent if we're ending with a parenthesis,
-            // but this parenthesis closes a multi-line function decl
-            var match = line.match(/([\)\}\]]);$/);
-            if (match) {
-
-                var openParen = complements[ match[1] ];
-                // Find the row for the associated opening paren
-                for (var i=row; i >= 0; --i) {
-                    if (lines[i].match("\\" + openParen)) {
-                        var startPos = lines[i].match(/(\w)/).index + 1;
-                        break;
-                    }
-                }
-                
-                if (startPos >= 0) {
-                    return Array(startPos).join(" ");
-                }
-
-            }
+            
 
             // Same logic for function calls
             var match = line.match(/\)\s*\{\s*$/);
@@ -275,7 +276,7 @@ define("mode/cpp", function(require, exports, module)
                 // Find the row for the associated opening paren
                 for (var i=row; i >= 0; --i) {
                     if (lines[i].match(/\(/)) {
-                        var startPos = lines[i].match(/(\w)/).index + 1;
+                        var startPos = lines[i].match(/([^\s])/).index + 1;
                         break;
                     }
                 }
