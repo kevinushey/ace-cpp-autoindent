@@ -297,6 +297,23 @@ var CStyleBehaviour = function () {
 
     });
 
+    this.add("punctuation.operator", "insertion", function (state, action, editor, session, text) {
+        
+        // Step over ';'
+        if (text == ";") {
+            var cursor = editor.selection.getCursor();
+            var line = session.getLine(cursor.row);
+            if (line[cursor.column] == ";") {
+                return {
+                    text: '',
+                    selection: [1, 1]
+                };
+            }
+
+        }
+
+    });
+
 };
 
 oop.inherits(CStyleBehaviour, Behaviour);
