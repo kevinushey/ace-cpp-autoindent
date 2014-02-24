@@ -54,9 +54,24 @@ var MatchingBraceOutdent = function() {};
         }
 
         // if we just typed 'public:', 'private:' or 'protected:',
-        // we should outdent
+        // we should outdent if possible
         if (/public:\s*$|private:\s*$|protected:\s*$/.test(lineNoComment)) {
-            doc.replace(new Range(row, 0, row, session.getTabSize()), "");
+
+            // look for the enclosing 'class' to get the indentation
+            var len = 0;
+            for (var i=row; i >= 0; i--) {
+                console.log(i);
+                var line = doc.$lines[i];
+                var match = line.match(/class /);
+                if (match) {
+                    len = match.index;
+                    break;
+                }
+            }
+
+            console.log(len);
+
+            doc.replace(new Range(row, 0, row, indent.length - len), "");
         }
 
         // If we're within a #define macro, then we should nudge any '\' to the right

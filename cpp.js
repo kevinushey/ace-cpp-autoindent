@@ -101,6 +101,8 @@ define("mode/cpp", function(require, exports, module)
         }
 
         var complements = {
+            "<" : ">",
+            ">" : "<",
             "{" : "}",
             "}" : "{",
             "[" : "]",
@@ -113,7 +115,8 @@ define("mode/cpp", function(require, exports, module)
         // is greater than or equal to the number of 'right' parentheses
         var findMatchingBracketRow = function(str, lines, row, balance) {
             
-            if (row == 0) return 0;
+            if (typeof row === "undefined") return -1;
+            if (row < 0) return -1;
 
             var line = lines[row];
 
@@ -213,6 +216,18 @@ define("mode/cpp", function(require, exports, module)
                 }
             }
 
+            // Only indent on an ending '>' if we're not in a template
+            // We can do this by checking for a matching '>'
+            if (line.match(/>$/)) {
+                var loc = findMatchingBracketRow(">", lines, row, 0);
+                console.log(loc);
+                if (loc >= 0) {
+                    return indent;
+                } else {
+                    return indent + tab;
+                }
+            }
+
             // Vertical alignment
             // We need to handle vertical alignment for two scenarios:
             // One, for multi-line function declarations, so that e.g.
@@ -228,7 +243,6 @@ define("mode/cpp", function(require, exports, module)
             //
             //      ^
             //
-            // We can do this decision based on '},' etc.
             if (line.match(/,\s*$/)) {
 
                 // get the associated brace position
@@ -250,8 +264,11 @@ define("mode/cpp", function(require, exports, module)
                 return indent.substr(1, indent.length-1);
             }
 
-            // If we end with a ':', we can indent
-            if (line.match(/:\s*$/)) {
+            // Indent for case:, private:, public:, protected:
+            if (line.match(/case\s+\w+:\s*$/) ||
+                line.match(/public:\s*$/) ||
+                line.match(/protected:\s*$/) ||
+                line.match(/private:\s*$/)) {
                 return indent + tab;
             }
 
@@ -267,7 +284,9 @@ define("mode/cpp", function(require, exports, module)
             }
 
             // Indent if the line ends on an operator token
-            if (line.match(/[\+\-\/\*\<\>\|\&\^\%\=]\s*$/)) {
+            // Can't include > here since they may be used
+            // for templates (it's handled above)
+            if (line.match(/[\+\-\/\*\|\<\&\^\%\=]\s*$/)) {
                 return indent + tab;
             }
 
@@ -333,6 +352,17 @@ define("mode/cpp", function(require, exports, module)
             }
 
             // Indent if we're ending with a parenthesis
+            // Tricky: if we're defining a class with inheritance, we may
+            // have something like
+            //
+            // class foo :
+            //     public A {
+            // 
+            // }^ 
+            //
+            // We walk up through tokens, ignoring those within <>,
+            // and look for something like foo (...):
+            // If we see two
             if (line.match(/^.*[\{\(\[]\s*$/)) {
                 return indent + tab;
             }

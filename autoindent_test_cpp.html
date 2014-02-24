@@ -35,6 +35,23 @@ struct  bar{
 struct bar{};
 </pre></li>
 <li><pre data-expected="2">
+class foo :
+  A,
+</pre></li>
+<li><pre data-expected="2">
+class foo : A,
+</pre></li>
+<li><pre data-expected="2">
+class foo : bar&lt;T&gt; {
+</pre></li>
+<li><pre data-expected="0">
+template &lt;typename T&gt;
+</pre></li>
+<li><pre data-expected="2">
+class foo:
+  public A {
+</pre></li>
+<li><pre data-expected="2">
 if (1 == 2) {
 </pre></li>
 <li><pre data-expected="0">

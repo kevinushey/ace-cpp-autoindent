@@ -77,7 +77,7 @@ var CStyleBehaviour = function () {
 
             // if it looks like we're using a initializor eg 'obj {', then
             // include a closing ;
-            if (line.match(/\w+\s*$/)) {
+            if (line.match(/[\w>]+\s*$/)) {
                 return {
                     text: '{};',
                     selection: [1, 1]
@@ -146,8 +146,6 @@ var CStyleBehaviour = function () {
                     // seems to get it wrong by default. Hack it in here.
                     var lines = session.doc.$lines;
                     var startPos = 0;
-
-                    
 
                     for (var i=row; i >= 0; --i) {
                         var cLine = lines[i];
