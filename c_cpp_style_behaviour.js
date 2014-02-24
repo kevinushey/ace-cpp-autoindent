@@ -8,6 +8,7 @@ var CStyleBehaviour = function () {
     this.add("braces", "insertion", function (state, action, editor, session, text) {
 
         var row = editor.selection.getCursor().row;
+        var col = editor.selection.getCursor().column;
         var line = session.getLine(row);
         var commentMatch = line.match(/\/\//);
         if (commentMatch) {
@@ -20,7 +21,15 @@ var CStyleBehaviour = function () {
             line = line.replace("const", "");
             line = line.replace("noexcept", "");
 
-            console.log(line);
+            // only look at the line up to the caret
+            if (col) {
+                line = line.substr(0, col);
+            }
+
+            if (/^\s*$/.test(line)) {
+                line = session.getLine(row - 1) + line;
+                row = row - 1;
+            }
 
             var selection = editor.getSelectionRange();
             var selected = session.doc.getTextRange(selection);
@@ -49,15 +58,6 @@ var CStyleBehaviour = function () {
                 };
             }
 
-            // class, struct specific indenting
-            var hasClassOrStruct = line.match(/class|struct/);
-            if (hasClassOrStruct) {
-                return {
-                    text: '{};',
-                    selection: [1, 1]
-                };
-            }
-
             // if we're assigning, e.g. through an initializor list, then
             // we should include a semi-colon
             if (line.match(/\=\s*$/)) {
@@ -77,7 +77,7 @@ var CStyleBehaviour = function () {
 
             // if it looks like we're using a initializor eg 'obj {', then
             // include a closing ;
-            if (line.match(/\w+\s+/)) {
+            if (line.match(/\w+\s*$/)) {
                 return {
                     text: '{};',
                     selection: [1, 1]
@@ -104,18 +104,82 @@ var CStyleBehaviour = function () {
                 }
             }
         } else if (text == "\n") {
+
+            var findMatchingBracketRow = function(str, lines, row, balance) {
+            
+                if (row == 0) return 0;
+
+                var line = lines[row];
+
+                var nRight = line.split(str).length - 1;
+                var nLeft = line.split(complements[str]).length - 1;
+                // console.log("Line:");
+                // console.log(line);
+                // console.log("nLeft: " + nLeft);
+                // console.log("nRight: " + nRight);
+                // console.log("Row: " + row);
+
+                balance = balance + nRight - nLeft;
+                
+                if (balance <= 0) {
+                    return row;
+                }
+
+                return findMatchingBracketRow(str, lines, row - 1, balance);
+            }
+
             var cursor = editor.getCursorPosition();
             var line = session.doc.getLine(cursor.row);
             var rightChar = line.substring(cursor.column, cursor.column + 1);
             if (rightChar == '}') {
+
+                // function-specific indentation
+                if (line.match(/\)\s*/)) {
+
+                    var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column + 1});
+                    if (!openBracePos)
+                         return null;
+
+                    var indent = this.getNextLineIndent(state, line.substring(0, line.length - 1), session.getTabString(), session.getTabSize(), row);
+                    
+                    // next_indent determines where the '}' gets placed, and $getIndent
+                    // seems to get it wrong by default. Hack it in here.
+                    var lines = session.doc.$lines;
+                    var startPos = 0;
+
+                    
+
+                    for (var i=row; i >= 0; --i) {
+                        var cLine = lines[i];
+                        var commentMatch = cLine.match(/\/\//);
+                        if (commentMatch) {
+                            cLine = line.substr(0, commentMatch.index - 1);
+                        }
+                        if (/\(/.test(cLine)) {
+                            var match = cLine.match(/(\w)/);
+                            if (match) {
+                                startPos = match.index + 1;
+                                break;
+                            }
+                        }
+                    }
+
+                    var next_indent = Array(startPos).join(" ");
+
+                    return {
+                        text: '\n' + indent + '\n' + next_indent,
+                        selection: [1, indent.length, 1, indent.length]
+                    };
+
+                }
+
+                // other indentation
                 var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column + 1});
                 if (!openBracePos)
                      return null;
 
                 var indent = this.getNextLineIndent(state, line.substring(0, line.length - 1), session.getTabString(), session.getTabSize(), row);
                 
-                // next_indent determines where the '}' gets placed, and $getIndent
-                // seems to get it wrong by default. Hack it in here.
                 var lines = session.doc.$lines;
                 var startPos = 0;
 
@@ -125,9 +189,12 @@ var CStyleBehaviour = function () {
                     if (commentMatch) {
                         cLine = line.substr(0, commentMatch.index - 1);
                     }
-                    if (/\(/.test(cLine)) {
-                        startPos = cLine.match(/(\w)/).index + 1;
-                        break;
+                    if (/\{/.test(cLine)) {
+                        var match = cLine.match(/([^\s])/);
+                        if (match) {
+                            startPos = match.index + 1;
+                            break;
+                        }
                     }
                 }
 

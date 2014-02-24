@@ -109,6 +109,31 @@ define("mode/cpp", function(require, exports, module)
             ")" : "("
         };
 
+        // Balance: we are balanced when the number of 'left' parentheses
+        // is greater than or equal to the number of 'right' parentheses
+        var findMatchingBracketRow = function(str, lines, row, balance) {
+            
+            if (row == 0) return 0;
+
+            var line = lines[row];
+
+            var nRight = line.split(str).length - 1;
+            var nLeft = line.split(complements[str]).length - 1;
+            // console.log("Line:");
+            // console.log(line);
+            // console.log("nLeft: " + nLeft);
+            // console.log("nRight: " + nRight);
+            // console.log("Row: " + row);
+
+            balance = balance + nRight - nLeft;
+            
+            if (balance <= 0) {
+                return row;
+            }
+
+            return findMatchingBracketRow(str, lines, row - 1, balance);
+        }
+
         var indent = this.$getIndent(line);
         var unindent = indent.substr(1, indent.length - tab.length);
         var lines = this.$doc.$lines;
@@ -155,7 +180,6 @@ define("mode/cpp", function(require, exports, module)
 
             // Allow users to have text further indented in a comment block
             if (/\s*\*+\s*(\w)/.test(line)) {
-                console.log("wat");
                 var firstCharMatch = /\w/.exec(line); // to get the first match
                 if (firstCharMatch) {
                     var firstStar = /\*/.exec(line);
@@ -267,21 +291,44 @@ define("mode/cpp", function(require, exports, module)
                 return unindent;
             }
 
-            
+            // Tricky: indent if we're ending with a parenthesis
+            // We have to walk up looking for the matching parenthesis,
+            // since we assume that parenthesis will have the proper scope
+            // or indentation
+            var match = line.match(/([\)\}\]]);$/);
+            if (match) {
+
+                // this is needed because apparently 'row' is undefined
+                // in the tester
+                if (row) {
+                    var rowMatch = findMatchingBracketRow(
+                        match[1],
+                        lines,
+                        row,
+                        0
+                    );
+                    
+                    var startPos = lines[rowMatch].match(/([^\s])/).index + 1;
+                    return Array(startPos).join(" ");
+                }
+
+            }
 
             // Same logic for function calls
             var match = line.match(/\)\s*\{\s*$/);
             if (match) {
 
                 // Find the row for the associated opening paren
-                for (var i=row; i >= 0; --i) {
-                    if (lines[i].match(/\(/)) {
-                        var startPos = lines[i].match(/([^\s])/).index + 1;
-                        break;
-                    }
+                if (row) {
+                    var rowMatch = findMatchingBracketRow(
+                        ")",
+                        lines,
+                        row,
+                        0
+                    );
+                    var startPos = lines[rowMatch].match(/[^\s]/).index + 1;
+                    return Array(startPos).join(" ") + tab;
                 }
-                
-                return Array(startPos).join(" ") + tab;
                 
             }
 
