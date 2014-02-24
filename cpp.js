@@ -220,7 +220,6 @@ define("mode/cpp", function(require, exports, module)
             // We can do this by checking for a matching '>'
             if (line.match(/>$/)) {
                 var loc = findMatchingBracketRow(">", lines, row, 0);
-                console.log(loc);
                 if (loc >= 0) {
                     return indent;
                 } else {

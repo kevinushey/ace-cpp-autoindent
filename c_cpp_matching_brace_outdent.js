@@ -69,8 +69,6 @@ var MatchingBraceOutdent = function() {};
                 }
             }
 
-            console.log(len);
-
             doc.replace(new Range(row, 0, row, indent.length - len), "");
         }
 
