@@ -78,7 +78,7 @@ var MatchingBraceOutdent = function() {};
         var inMacro = function(lines, thisRow) {
             if (/#define/.test(lines[thisRow])) {
                 return true;
-            } else if (/\\$/.test(lines[thisRow-1])) {
+            } else if (/\\\s*$/.test(lines[thisRow-1])) {
                 return inMacro(lines, thisRow-1);
             } else {
                 return false;
@@ -86,22 +86,25 @@ var MatchingBraceOutdent = function() {};
         }
 
         if (/\\/.test(line) && inMacro(doc.$lines, row)) {
+
             var col = session.selection.getCursor().column;
 
             // Move all text to the right of the '\' alongside it to the right
             var rightText = line.substr(col);
-            var range = new Range(row, col-1, row, 60);
-            // doc.replace(range, Array(60 - col).join(" ") + "\\" + rightText);
-
+            var range = new Range(row, col - 1, row, 60);
+            
             if (/#define/.test(line)) {
                 doc.replace(range, Array(60 - col).join(" ") + "\\" + rightText);
             } else {
+                console.log(range);
+                console.log(Array(60 - col).join(" "));
                 doc.replace(range, Array(60 - col).join(" ") + "\\");
             }
 
             // move the cursor to just after the inserted '\'
             var loc = doc.$lines[row].match(/\\/);
             session.selection.moveCursorTo(row, loc.index + 1);
+            return 0;
         }
 
         // If we typed a / to close a block comment, be nice and nudge it left

@@ -75,6 +75,14 @@ var CStyleBehaviour = function () {
                 };
             }
 
+            // if we're making a block define, don't add a semi-colon
+            if (line.match(/#define\s+\w+/)) {
+                return {
+                    text: '{}',
+                    selection: [1, 1]
+                }
+            }
+
             // if it looks like we're using a initializor eg 'obj {', then
             // include a closing ;
             if (line.match(/[\w>]+\s*$/)) {
@@ -133,6 +141,50 @@ var CStyleBehaviour = function () {
             var rightChar = line.substring(cursor.column, cursor.column + 1);
             if (rightChar == '}') {
 
+                // class specific indentation (if possible)
+                var numTokens = 0;
+                var numCommas = 0;
+                var lines = session.doc.$lines;
+
+                // walk up through the rows
+                for (var i=row; i >= 0; --i) {
+
+                    var line = lines[i];
+
+                    if (line.match(/:/)) {
+                        
+                        var next_indent = Array( line.match(/[^\s]/).index + 1 ).join(" ");
+                        var indent = next_indent + Array(session.getTabSize() + 1).join(" ");
+
+                        return {
+                            text: '\n' + indent + '\n' + next_indent,
+                            selection: [1, indent.length, 1, indent.length]
+                        }
+                    }
+
+                    // strip initial whitespace
+                    line = line.replace(indent, "");
+                    
+                    // strip out private, virtual, public, whitespace
+                    line = line.replace("public ", "");
+                    line = line.replace("private ", "");
+                    line = line.replace("virtual ", "");
+
+                    // strip out anything within quotes
+                    line = line.replace(/".*?"/, "");
+
+                    // collapse whitespace
+                    line = line.replace(/\s+/, " ");
+                    line = line.replace(/s+{?$/, "");
+
+                    numTokens += line.split(" ").length - 1;
+                    numCommas += line.split(",").length - 1;
+
+                    // If the following condition is true, we ran into too
+                    // many tokens without enough ',' or ':'
+                    if (numTokens - numCommas > 2) break;
+                }
+
                 // function-specific indentation
                 if (line.match(/\)\s*/)) {
 
@@ -171,37 +223,15 @@ var CStyleBehaviour = function () {
 
                 }
 
-                // other indentation
-                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column + 1});
-                if (!openBracePos)
-                     return null;
 
-                var indent = this.getNextLineIndent(state, line.substring(0, line.length - 1), session.getTabString(), session.getTabSize(), row);
-                
-                var lines = session.doc.$lines;
-                var startPos = 0;
-
-                for (var i=row; i >= 0; --i) {
-                    var cLine = lines[i];
-                    var commentMatch = cLine.match(/\/\//);
-                    if (commentMatch) {
-                        cLine = line.substr(0, commentMatch.index - 1);
-                    }
-                    if (/\{/.test(cLine)) {
-                        var match = cLine.match(/([^\s])/);
-                        if (match) {
-                            startPos = match.index + 1;
-                            break;
-                        }
-                    }
-                }
-
-                var next_indent = Array(startPos).join(" ");
-
+                // default behavior -- based on just the current row
+                var firstCharMatch = lines[row].match(/[^\s]/).index + 1;
+                var indent = Array(firstCharMatch + session.getTabSize()).join(" ");
+                var next_indent = Array(firstCharMatch).join(" ");
                 return {
-                    text: '\n' + indent + '\n' + next_indent,
+                    text: "\n" + indent + "\n" + next_indent,
                     selection: [1, indent.length, 1, indent.length]
-                };
+                }
                 
             }
         }
