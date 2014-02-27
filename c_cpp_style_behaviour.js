@@ -137,7 +137,7 @@ var CStyleBehaviour = function () {
             }
 
             var cursor = editor.getCursorPosition();
-            var line = session.doc.getLine(cursor.row);
+            var line = new String(session.doc.getLine(cursor.row));
             var rightChar = line.substring(cursor.column, cursor.column + 1);
             if (rightChar == '}') {
 
@@ -192,8 +192,6 @@ var CStyleBehaviour = function () {
                     if (!openBracePos)
                          return null;
 
-                    var indent = this.getNextLineIndent(state, line.substring(0, line.length - 1), session.getTabString(), session.getTabSize(), row);
-                    
                     // next_indent determines where the '}' gets placed, and $getIndent
                     // seems to get it wrong by default. Hack it in here.
                     var lines = session.doc.$lines;
@@ -214,11 +212,15 @@ var CStyleBehaviour = function () {
                         }
                     }
 
+                    var line = session.doc.getLine(cursor.row);
+                    var match = line.match(/[^\s]/);
+                    var indent = Array(match.index + session.getTabSize() + 1).join(" ");
                     var next_indent = Array(startPos).join(" ");
-
+                    
                     return {
                         text: '\n' + indent + '\n' + next_indent,
-                        selection: [1, indent.length, 1, indent.length]
+                        selection: [1, indent.length + session.getTabSize(),
+                                    1, indent.length + session.getTabSize()]
                     };
 
                 }
